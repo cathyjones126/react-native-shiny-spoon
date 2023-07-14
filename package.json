@@ -1,0 +1,27 @@
+{
+    "name": "react-native-shiny-spoon",
+    "version": "1.0.0",
+    "description": "this is designed for shiny",
+    "homepage": "https://github.com/cathyjones126/react-native-shiny-spoon",
+    "main": "index.js",
+    "scripts": {
+      "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [
+      "react-native-shiny-spoon"
+    ],
+    "author": {
+      "name": "shiny",
+      "email": "shiny@example.com"
+    },
+    "license": "MIT",
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/cathyjones126/react-native-shiny-spoon.git"
+    },
+    "peerDependencies": {
+      "react": "*",
+      "react-native": "*"
+    }
+  }
+  
