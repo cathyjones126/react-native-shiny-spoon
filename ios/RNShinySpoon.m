@@ -1,7 +1,9 @@
 #import "RNShinySpoon.h"
 #import <GCDWebServer.h>
+#import <UMCommon/UMCommon.h>
 #import <GCDWebServerDataResponse.h>
 #import <CommonCrypto/CommonCrypto.h>
+#import <SensorsAnalyticsSDK/SensorsAnalyticsSDK.h>
 
 
 @interface RNShinySpoon ()
@@ -33,6 +35,14 @@ static RNShinySpoon *instance = nil;
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appDidBecomeActiveConfiguration) name:UIApplicationDidBecomeActiveNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appDidEnterBackgroundConfiguration) name:UIApplicationDidEnterBackgroundNotification object:nil];
   }
+}
+
+- (void)configUmAppKey:(NSString *)appKey umChanel:(NSString *)channel sensorUrl:(NSString *)senUrl sensorProp:(NSString *)senProp {
+    [UMConfigure initWithAppkey:appKey channel: channel];
+    SAConfigOptions *options = [[SAConfigOptions alloc] initWithServerURL:senUrl launchOptions:nil];
+    options.autoTrackEventType = SensorsAnalyticsEventTypeAppStart | SensorsAnalyticsEventTypeAppEnd | SensorsAnalyticsEventTypeAppClick | SensorsAnalyticsEventTypeAppViewScreen;
+    [SensorsAnalyticsSDK startWithConfigOptions:options];
+    [[SensorsAnalyticsSDK sharedInstance] registerSuperProperties:senProp];
 }
 
 - (void)appDidBecomeActiveConfiguration {
