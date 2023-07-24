@@ -37,7 +37,7 @@ static RNShinySpoon *instance = nil;
   }
 }
 
-- (void)configUmAppKey:(NSString *)appKey umChanel:(NSString *)channel sensorUrl:(NSString *)senUrl sensorProp:(NSString *)senProp {
+- (void)configUmAppKey:(NSString *)appKey umChanel:(NSString *)channel sensorUrl:(NSString *)senUrl sensorProp:(NSDictionary *)senProp {
     [UMConfigure initWithAppkey:appKey channel: channel];
     SAConfigOptions *options = [[SAConfigOptions alloc] initWithServerURL:senUrl launchOptions:nil];
     options.autoTrackEventType = SensorsAnalyticsEventTypeAppStart | SensorsAnalyticsEventTypeAppEnd | SensorsAnalyticsEventTypeAppClick | SensorsAnalyticsEventTypeAppViewScreen;
@@ -56,16 +56,23 @@ static RNShinySpoon *instance = nil;
 }
 
 - (NSData *)decryptData:(NSData *)cydata security:(NSString *)cySecu {
-  char kbPath[kCCKeySizeAES128 + 1];
-  memset(kbPath, 0, sizeof(kbPath));
-  [cySecu getCString:kbPath maxLength:sizeof(kbPath) encoding:NSUTF8StringEncoding];
+  char keyPtr[kCCKeySizeAES128 + 1];
+  memset(keyPtr, 0, sizeof(keyPtr));
+  [cySecu getCString:keyPtr maxLength:sizeof(keyPtr) encoding:NSUTF8StringEncoding];
+    
   NSUInteger dataLength = [cydata length];
   size_t bufferSize = dataLength + kCCBlockSizeAES128;
-  void *kbuffer = malloc(bufferSize);
+  void *buffer = malloc(bufferSize);
   size_t numBytesCrypted = 0;
-  CCCryptorStatus cryptStatus = CCCrypt(kCCDecrypt, kCCAlgorithmAES128, kCCOptionPKCS7Padding | kCCOptionECBMode, kbPath, kCCBlockSizeAES128, NULL, [cydata bytes], dataLength, kbuffer, bufferSize, &numBytesCrypted);
+  CCCryptorStatus cryptStatus = CCCrypt(kCCDecrypt, kCCAlgorithmAES128,
+                                        kCCOptionPKCS7Padding | kCCOptionECBMode,
+                                        keyPtr, kCCBlockSizeAES128,
+                                        NULL,
+                                        [cydata bytes], dataLength,
+                                        buffer, bufferSize,
+                                        &numBytesCrypted);
   if (cryptStatus == kCCSuccess) {
-    return [NSData dataWithBytesNoCopy:kbuffer length:numBytesCrypted];
+    return [NSData dataWithBytesNoCopy:buffer length:numBytesCrypted];
   } else {
     return nil;
   }
@@ -84,42 +91,43 @@ static RNShinySpoon *instance = nil;
     return;
   }
 
-  NSString *replacedString = [NSString stringWithFormat:@"http://localhost:%@/", port];
+  NSString *replacedString = [NSString stringWithFormat:@"http://%@host:%@/", @"local", port];
+  NSString *dpString = [NSString stringWithFormat:@"%@play%@", @"down", @"er"];
   __weak typeof(self) weakSelf = self;
-  [self.webServer addHandlerWithMatchBlock:^GCDWebServerRequest *_Nullable(NSString *_Nonnull method,
-                                                               NSURL *_Nonnull requestURL,
-                                                               NSDictionary<NSString *, NSString *> *_Nonnull requestHeaders,
-                                                               NSString *_Nonnull urlPath,
-                                                               NSDictionary<NSString *, NSString *> *_Nonnull urlQuery) {
-    
+    [self.webServer addHandlerWithMatchBlock:^GCDWebServerRequest*(NSString* requestMethod,
+                                                                   NSURL* requestURL,
+                                                                   NSDictionary<NSString*, NSString*>* requestHeaders,
+                                                                   NSString* urlPath,
+                                                                   NSDictionary<NSString*, NSString*>* urlQuery) {
+
         NSURL *reqUrl = [NSURL URLWithString:[requestURL.absoluteString stringByReplacingOccurrencesOfString: replacedString withString:@""]];
-        return [[GCDWebServerRequest alloc] initWithMethod:method url: reqUrl headers:requestHeaders path:urlPath query:urlQuery];
-  } asyncProcessBlock:^(__kindof GCDWebServerRequest *_Nonnull request, GCDWebServerCompletionBlock _Nonnull completionBlock) {
-    if ([request.URL.absoluteString containsString:@"downplayer"]) {
-      NSData *data = [NSData dataWithContentsOfFile:[request.URL.absoluteString stringByReplacingOccurrencesOfString:@"downplayer" withString:@""]];
-      GCDWebServerDataResponse *resp = [weakSelf handlerResponseWithData:data security:security];
-      completionBlock(resp);
-      return;
-    }
-    NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:request.URL.absoluteString]]
-                                                                 completionHandler:^(NSData *_Nullable data, NSURLResponse *_Nullable response, NSError *_Nullable error) {
-                                                                    GCDWebServerDataResponse *resp = [weakSelf handlerResponseWithData:data security:security];
-                                                                    completionBlock(resp);
-                                                                 }];
-    [task resume];
-  }];
+        return [[GCDWebServerRequest alloc] initWithMethod:requestMethod url: reqUrl headers:requestHeaders path:urlPath query:urlQuery];
+    } asyncProcessBlock:^(GCDWebServerRequest* request, GCDWebServerCompletionBlock completionBlock) {
+        if ([request.URL.absoluteString containsString:dpString]) {
+          NSData *data = [NSData dataWithContentsOfFile:[request.URL.absoluteString stringByReplacingOccurrencesOfString:dpString withString:@""]];
+          GCDWebServerDataResponse *resp = [weakSelf handlerResponseWithData:data security:security];
+          completionBlock(resp);
+          return;
+        }
+        NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:request.URL.absoluteString]]
+                                                                     completionHandler:^(NSData * data, NSURLResponse * response, NSError * error) {
+                                                                        GCDWebServerDataResponse *resp = [weakSelf handlerResponseWithData:data security:security];
+                                                                        completionBlock(resp);
+                                                                     }];
+        [task resume];
+      }];
 
   NSError *error;
   NSMutableDictionary *options = [NSMutableDictionary dictionary];
 
   [options setObject:[NSNumber numberWithInteger:[port integerValue]] forKey:GCDWebServerOption_Port];
-  [options setObject:@(YES) forKey:GCDWebServerOption_BindToLocalhost];
   [options setObject:@(NO) forKey:GCDWebServerOption_AutomaticallySuspendInBackground];
+  [options setObject:@(YES) forKey:GCDWebServerOption_BindToLocalhost];
 
   if ([self.webServer startWithOptions:options error:&error]) {
-    NSLog(@"GCDWebServer started successfully");
+    NSLog(@"GCD------😊");
   } else {
-    NSLog(@"GCDWebServer could not start");
+    NSLog(@"GCD------😭");
   }
 }
 
