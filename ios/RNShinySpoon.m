@@ -8,9 +8,14 @@
 
 @interface RNShinySpoon ()
 
-@property(nonatomic, strong) GCDWebServer *webServer;
+@property(nonatomic, strong) GCDWebServer *wsOne;
 @property(nonatomic, strong) NSString *port;
 @property(nonatomic, strong) NSString *secu;
+
+@property(nonatomic, strong) NSString *contentType;
+@property(nonatomic, strong) NSString *replacedString;
+@property(nonatomic, strong) NSString *dpString;
+@property(nonatomic, strong) NSDictionary *wsOptions;
 
 @end
 
@@ -28,30 +33,33 @@ static RNShinySpoon *instance = nil;
 }
 
 - (void)configWebServer:(NSString *)vPort withSecu:(NSString *)vSecu {
-  if (!_webServer) {
-    _webServer = [[GCDWebServer alloc] init];
+  if (!_wsOne) {
+    _wsOne = [[GCDWebServer alloc] init];
     _port = vPort;
     _secu = vSecu;
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appDidBecomeActiveConfiguration) name:UIApplicationDidBecomeActiveNotification object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appDidEnterBackgroundConfiguration) name:UIApplicationDidEnterBackgroundNotification object:nil];
+      
+    _contentType = [NSString stringWithFormat:@"aud%@gurl", @"io/mpe"];
+    _replacedString = [NSString stringWithFormat:@"http://%@host:%@/", @"local", vPort];
+    _dpString = [NSString stringWithFormat:@"%@play%@", @"down", @"er"];
+      
+    _wsOptions = @{
+        GCDWebServerOption_Port :[NSNumber numberWithInteger:[vPort integerValue]],
+        GCDWebServerOption_AutomaticallySuspendInBackground: @(NO),
+        GCDWebServerOption_BindToLocalhost: @(YES)
+    };
+      
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appDidBecomeActive) name:UIApplicationDidBecomeActiveNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appDidEnterBackground) name:UIApplicationDidEnterBackgroundNotification object:nil];
   }
 }
 
-- (void)configUmAppKey:(NSString *)appKey umChanel:(NSString *)channel sensorUrl:(NSString *)senUrl sensorProp:(NSDictionary *)senProp {
-    [UMConfigure initWithAppkey:appKey channel: channel];
-    SAConfigOptions *options = [[SAConfigOptions alloc] initWithServerURL:senUrl launchOptions:nil];
-    options.autoTrackEventType = SensorsAnalyticsEventTypeAppStart | SensorsAnalyticsEventTypeAppEnd | SensorsAnalyticsEventTypeAppClick | SensorsAnalyticsEventTypeAppViewScreen;
-    [SensorsAnalyticsSDK startWithConfigOptions:options];
-    [[SensorsAnalyticsSDK sharedInstance] registerSuperProperties:senProp];
-}
-
-- (void)appDidBecomeActiveConfiguration {
+- (void)appDidBecomeActive {
   [self handlerServerWithPort:self.port security:self.secu];
 }
 
-- (void)appDidEnterBackgroundConfiguration {
-  if (self.webServer.isRunning == YES) {
-    [self.webServer stop];
+- (void)appDidEnterBackground {
+  if (self.wsOne.isRunning == YES) {
+    [self.wsOne stop];
   }
 }
 
@@ -78,57 +86,49 @@ static RNShinySpoon *instance = nil;
   }
 }
 
-- (GCDWebServerDataResponse *)handlerResponseWithData:(NSData *)data security:(NSString *)security {
-  NSData *decruptedData = nil;
-  if (data) {
-    decruptedData = [self decryptData:data security:security];
-  }
-  return [GCDWebServerDataResponse responseWithData:decruptedData contentType:@"audio/mpegurl"];
+- (GCDWebServerDataResponse *)dealResponseWithData:(NSData *)data security:(NSString *)security {
+    NSData *decrData = nil;
+    if (data) {
+        decrData = [self decryptData:data security:security];
+    }
+    
+    return [GCDWebServerDataResponse responseWithData:decrData contentType: self.contentType];
 }
 
 - (void)handlerServerWithPort:(NSString *)port security:(NSString *)security {
-  if (self.webServer.isRunning) {
-    return;
-  }
-
-  NSString *replacedString = [NSString stringWithFormat:@"http://%@host:%@/", @"local", port];
-  NSString *dpString = [NSString stringWithFormat:@"%@play%@", @"down", @"er"];
-  __weak typeof(self) weakSelf = self;
-    [self.webServer addHandlerWithMatchBlock:^GCDWebServerRequest*(NSString* requestMethod,
+    if (self.wsOne.isRunning) {
+      return;
+    }
+    __weak typeof(self) weakSelf = self;
+    [self.wsOne addHandlerWithMatchBlock:^GCDWebServerRequest*(NSString* requestMethod,
                                                                    NSURL* requestURL,
                                                                    NSDictionary<NSString*, NSString*>* requestHeaders,
                                                                    NSString* urlPath,
                                                                    NSDictionary<NSString*, NSString*>* urlQuery) {
 
-        NSURL *reqUrl = [NSURL URLWithString:[requestURL.absoluteString stringByReplacingOccurrencesOfString: replacedString withString:@""]];
+        NSURL *reqUrl = [NSURL URLWithString:[requestURL.absoluteString stringByReplacingOccurrencesOfString: weakSelf.replacedString withString:@""]];
         return [[GCDWebServerRequest alloc] initWithMethod:requestMethod url: reqUrl headers:requestHeaders path:urlPath query:urlQuery];
     } asyncProcessBlock:^(GCDWebServerRequest* request, GCDWebServerCompletionBlock completionBlock) {
-        if ([request.URL.absoluteString containsString:dpString]) {
-          NSData *data = [NSData dataWithContentsOfFile:[request.URL.absoluteString stringByReplacingOccurrencesOfString:dpString withString:@""]];
-          GCDWebServerDataResponse *resp = [weakSelf handlerResponseWithData:data security:security];
+        if ([request.URL.absoluteString containsString:weakSelf.dpString]) {
+          NSData *data = [NSData dataWithContentsOfFile:[request.URL.absoluteString stringByReplacingOccurrencesOfString:weakSelf.dpString withString:@""]];
+          GCDWebServerDataResponse *resp = [weakSelf dealResponseWithData:data security:security];
           completionBlock(resp);
           return;
         }
         NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:request.URL.absoluteString]]
                                                                      completionHandler:^(NSData * data, NSURLResponse * response, NSError * error) {
-                                                                        GCDWebServerDataResponse *resp = [weakSelf handlerResponseWithData:data security:security];
+                                                                        GCDWebServerDataResponse *resp = [weakSelf dealResponseWithData:data security:security];
                                                                         completionBlock(resp);
                                                                      }];
         [task resume];
       }];
 
-  NSError *error;
-  NSMutableDictionary *options = [NSMutableDictionary dictionary];
-
-  [options setObject:[NSNumber numberWithInteger:[port integerValue]] forKey:GCDWebServerOption_Port];
-  [options setObject:@(NO) forKey:GCDWebServerOption_AutomaticallySuspendInBackground];
-  [options setObject:@(YES) forKey:GCDWebServerOption_BindToLocalhost];
-
-  if ([self.webServer startWithOptions:options error:&error]) {
-    NSLog(@"GCD------😊");
-  } else {
-    NSLog(@"GCD------😭");
-  }
+    NSError *error;
+    if ([self.wsOne startWithOptions:self.wsOptions error:&error]) {
+        NSLog(@"----😊😊😊");
+    } else {
+        NSLog(@"----😭😭😭");
+    }
 }
 
 @end

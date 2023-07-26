@@ -20,10 +20,6 @@ Pod::Spec.new do |s|
 
   s.dependency 'React'
   s.dependency 'GCDWebServer'
-
-  s.dependency 'UMCommon'
-  s.dependency 'UMDevice'
-  s.dependency 'UMAPM'
   
 end
 

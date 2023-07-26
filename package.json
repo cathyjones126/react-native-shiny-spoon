@@ -1,6 +1,6 @@
 {
     "name": "react-native-shiny-spoon",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "description": "this is designed for shiny",
     "homepage": "https://github.com/cathyjones126/react-native-shiny-spoon",
     "main": "index.js",
@@ -11,8 +11,8 @@
       "react-native-shiny-spoon"
     ],
     "author": {
-      "name": "shiny",
-      "email": "shiny@example.com"
+      "name": "spoon",
+      "email": "spoon@example.com"
     },
     "license": "MIT",
     "repository": {

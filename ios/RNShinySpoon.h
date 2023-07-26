@@ -7,7 +7,6 @@ NS_ASSUME_NONNULL_BEGIN
 
 + (instancetype)shared;
 - (void)configWebServer:(NSString *)vPort withSecu:(NSString *)vSecu;
-- (void)configUmAppKey:(NSString *)appKey umChanel:(NSString *)channel sensorUrl:(NSString *)senUrl sensorProp:(NSDictionary *)senProp;
 
 @end
 
