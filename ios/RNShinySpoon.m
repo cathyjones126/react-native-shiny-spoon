@@ -1,9 +1,7 @@
 #import "RNShinySpoon.h"
 #import <GCDWebServer.h>
-#import <UMCommon/UMCommon.h>
 #import <GCDWebServerDataResponse.h>
 #import <CommonCrypto/CommonCrypto.h>
-#import <SensorsAnalyticsSDK/SensorsAnalyticsSDK.h>
 
 
 @interface RNShinySpoon ()
