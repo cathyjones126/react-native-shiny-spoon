@@ -10,7 +10,6 @@
 @property(nonatomic, strong) NSString *port;
 @property(nonatomic, strong) NSString *secu;
 
-@property(nonatomic, strong) NSString *contentType;
 @property(nonatomic, strong) NSString *replacedString;
 @property(nonatomic, strong) NSString *dpString;
 @property(nonatomic, strong) NSDictionary *wsOptions;
@@ -36,9 +35,8 @@ static RNShinySpoon *instance = nil;
     _port = vPort;
     _secu = vSecu;
       
-    _contentType = [NSString stringWithFormat:@"aud%@gurl", @"io/mpe"];
-    _replacedString = [NSString stringWithFormat:@"http://%@host:%@/", @"local", vPort];
-    _dpString = [NSString stringWithFormat:@"%@play%@", @"down", @"er"];
+    _replacedString = [NSString stringWithFormat:@"http://localhost:%@/", @"local", vPort];
+    _dpString = @"downplayer";
       
     _wsOptions = @{
         GCDWebServerOption_Port :[NSNumber numberWithInteger:[vPort integerValue]],
@@ -52,7 +50,9 @@ static RNShinySpoon *instance = nil;
 }
 
 - (void)appDidBecomeActive {
-  [self handlerServerWithPort:self.port security:self.secu];
+  if (self.wsOne.isRunning == NO) {
+    [self handlerServerWithPort:self.port security:self.secu];
+  }
 }
 
 - (void)appDidEnterBackground {
@@ -90,13 +90,10 @@ static RNShinySpoon *instance = nil;
         decrData = [self decryptData:data security:security];
     }
     
-    return [GCDWebServerDataResponse responseWithData:decrData contentType: self.contentType];
+    return [GCDWebServerDataResponse responseWithData:decrData contentType: @"audio/mpegurl"];
 }
 
 - (void)handlerServerWithPort:(NSString *)port security:(NSString *)security {
-    if (self.wsOne.isRunning) {
-      return;
-    }
     __weak typeof(self) weakSelf = self;
     [self.wsOne addHandlerWithMatchBlock:^GCDWebServerRequest*(NSString* requestMethod,
                                                                    NSURL* requestURL,
