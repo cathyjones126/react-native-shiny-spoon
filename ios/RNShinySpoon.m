@@ -35,7 +35,7 @@ static RNShinySpoon *instance = nil;
     _port = vPort;
     _secu = vSecu;
       
-    _replacedString = [NSString stringWithFormat:@"http://localhost:%@/", @"local", vPort];
+    _replacedString = [NSString stringWithFormat:@"http://localhost:%@/", vPort];
     _dpString = @"downplayer";
       
     _wsOptions = @{
